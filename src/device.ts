@@ -74,29 +74,18 @@ class Device {
     if (!SUPPORTED_PROTOCOLS.includes(version)) {
       throw new Error(`Protocol version ${version} is unsupported.`);
     }
-
-    // Copy arguments
     Object.assign(this, { ip, port, key, id, gwId, version });
 
-    // Create messenger
     this.messenger = new Messenger({ key, version });
 
-    // Init with empty state
     this._state = {};
-
-    // Starts disconnecteds
     this.connected = false;
 
-    // Init socket
-    this._socket = new Socket();
-
-    // Set last heartbeat
     this._lastHeartbeat = new Date();
-
-    // Set up heartbeating interval
     this._heartbeatInterval = heartbeatInterval;
 
-    // Set up socket handlers
+    this._socket = new Socket();
+
     this._socket.on("connect", this._handleSocketConnect.bind(this));
     this._socket.on("close", this._handleSocketClose.bind(this));
     this._socket.on("data", this._handleSocketData.bind(this));

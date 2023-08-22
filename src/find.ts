@@ -6,6 +6,9 @@ import { createHash } from "crypto";
 
 import { UDP_KEY } from "./lib/constants";
 
+import loggerfactory from 'debug';
+const log = loggerfactory('tuya-driver:find');
+
 const UNIVERSAL_KEY = createHash("md5")
   .update(UDP_KEY, "utf8")
   .digest();
@@ -82,14 +85,13 @@ export class Find {
       this.emit("rawBroadcastPlain", message);
 
       const frame = this._messenger.decode(message);
-      //console.log(frame);
       const body = frame.payload.toString("ascii");
-      console.log(body);
+      log(body);
       const payload = JSON.parse(body) as DiscoveryMessage;
 
       this.emit("broadcast", payload);
     } catch (error) {
-      console.log(error);
+      log(error);
       // It's possible another application is
       // using ports 6666 or 6667, so we shouldn't
       // throw on failure.
@@ -103,12 +105,12 @@ export class Find {
 
       const frame = this._messenger.decode(message);
       const body = frame.payload.toString("ascii");
-      console.log(body);
+      log(body);
       const payload = JSON.parse(body);
 
       this.emit("broadcast", payload);
     } catch (error) {
-      console.log(error);
+      log(error);
       // It's possible another application is
       // using ports 6666 or 6667, so we shouldn't
       // throw on failure.
