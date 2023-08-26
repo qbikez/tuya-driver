@@ -10,6 +10,8 @@ describe("device v3.3", () => {
   const [packets, packetRecevied] = subscribeToEvent<Packet>(device, "packet");
   const [data, dataReceived] = subscribeToEvent<Frame>(device, "rawData");
   const [states, stateChanged] = subscribeToEvent<unknown>(device, "state-change");
+  const [disconnects, disconnected] = subscribeToEvent(device, "disconnected");
+
   device.on("packet", (packet) => {
     console.log("packet", packet);
   });
@@ -70,6 +72,17 @@ describe("device v3.3", () => {
 
     expect(state).toMatchObject(newState);
   });
+
+  it("ping works", async () => {
+    const disconnectPromise = disconnected();
+    const prev = device.getState();
+    device.ping();
+    
+    device.update();
+    await Promise.race([stateChanged(), disconnectPromise]);
+    
+    expect(device.connected).toBe(true);
+  });
 });
 
 
@@ -83,6 +96,7 @@ describe("device v3.4", () => {
   const [packets, packetRecevied] = subscribeToEvent<Packet>(device, "packet");
   const [data, dataReceived] = subscribeToEvent<object>(device, "data");
   const [states, stateChanged] = subscribeToEvent<unknown>(device, "state-change");
+  const [disconnects, disconnected] = subscribeToEvent(device, "disconnected");
 
   it("can connect", async () => {
     const [_, connected] = subscribeToEvent(device, "connected");
@@ -128,6 +142,18 @@ describe("device v3.4", () => {
     console.log("state", state);
 
     expect(state).toMatchObject(newState);
+  });
+
+  it("ping works", async () => {
+    const disconnectPromise = disconnected();
+    const prev = device.getState();
+    
+    device.ping();
+    
+    device.update();
+    await Promise.race([stateChanged(), disconnectPromise]);
+    
+    expect(device.connected).toBe(true);
   });
 });
 

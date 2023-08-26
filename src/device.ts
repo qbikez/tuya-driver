@@ -213,15 +213,24 @@ class Device {
       return this.disconnect();
     }
 
+    setTimeout(this._recursiveHeartbeat.bind(this), this._heartbeatInterval);
+  }
+
+  public ping() {
+    const payload = {
+      gwId: this.gwId,
+      devId: this.id,
+      t: Math.round(new Date().getTime() / 1000).toString(),
+      uid: this.id,
+    };
     const frame: Frame = {
       version: this.version,
       command: COMMANDS.HEART_BEAT,
-      payload: Buffer.alloc(0),
+      payload: Buffer.from(JSON.stringify(payload)),
+      sequenceN: ++this._currentSequenceN,
     };
 
     this.send(this.messenger.encode(frame));
-
-    setTimeout(this._recursiveHeartbeat.bind(this), this._heartbeatInterval);
   }
 
   private requestSessionKey() {

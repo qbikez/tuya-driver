@@ -85,7 +85,7 @@ describe("device list", () => {
       return;
     }
     console.log(
-      `found ${message.gwId} at ${message.ip}, ${toFind.length} left`
+      `found ${message.gwId} at ${message.ip}, matched to ${deviceConfig.name}. ${toFind.length} left.`
     );
     console.log(message);
 
