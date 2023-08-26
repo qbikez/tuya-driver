@@ -212,6 +212,7 @@ class Device {
       );
       return this.disconnect();
     }
+    this.ping();
 
     setTimeout(this._recursiveHeartbeat.bind(this), this._heartbeatInterval);
   }
