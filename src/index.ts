@@ -4,7 +4,7 @@ import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 
 import Device from './device';
-import Find from './find';
+import { Find } from './find';
 
 import * as Constants from './lib/constants';
 import crc from './lib/crc';

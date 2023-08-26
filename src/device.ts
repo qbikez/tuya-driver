@@ -28,6 +28,7 @@ export type DeviceOptions = {
   gwId?: string;
   version?: number;
   heartbeatInterval?: number;
+  heartbeatTimeout?: number;
 };
 
 export type DataPoint = string | number | boolean | unknown;
@@ -60,6 +61,7 @@ class Device {
   private _tmpLocalKey?: Buffer;
   private _currentSequenceN: number = 0;
   private sessionKey?: Buffer;
+  private _hearbeatTimeout: number;
 
   constructor({
     ip,
@@ -69,6 +71,7 @@ class Device {
     version = 3.3,
     port = 6668,
     heartbeatInterval = 1000,
+    heartbeatTimeout,
   }: DeviceOptions) {
     // Check protocol version
     if (!SUPPORTED_PROTOCOLS.includes(version)) {
@@ -83,6 +86,7 @@ class Device {
 
     this._lastHeartbeat = new Date();
     this._heartbeatInterval = heartbeatInterval;
+    this._hearbeatTimeout = heartbeatTimeout ?? 2 * heartbeatInterval;
 
     this._socket = new Socket();
 
@@ -197,13 +201,15 @@ class Device {
   }
 
   private _recursiveHeartbeat(): void {
-    if (
-      new Date().getTime() - this._lastHeartbeat.getTime() >
-      this._heartbeatInterval * 2
-    ) {
+    const timeout = this._hearbeatTimeout;
+    if (new Date().getTime() - this._lastHeartbeat.getTime() > timeout) {
       console.log("Heartbeat timeout - disconnecting");
       // Heartbeat timeout
       // Should we emit error on timeout?
+      this.emit(
+        "error",
+        new Error(`Heartbeat timed out after ${timeout}. disconnecting.`)
+      );
       return this.disconnect();
     }
 
