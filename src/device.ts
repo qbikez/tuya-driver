@@ -29,6 +29,7 @@ export type DeviceOptions = {
   version?: number;
   heartbeatInterval?: number;
   heartbeatTimeout?: number;
+  heartbeatMode?: "ping" | "query";
 };
 
 export type DataPoint = string | number | boolean | unknown;
@@ -62,7 +63,8 @@ class Device {
   private _currentSequenceN: number = 0;
   private sessionKey?: Buffer;
   private _hearbeatTimeout: number;
-
+  private _heartbeatMode: "ping" | "query";
+  
   constructor({
     ip,
     id,
@@ -72,6 +74,7 @@ class Device {
     port = 6668,
     heartbeatInterval = 1000,
     heartbeatTimeout,
+    heartbeatMode,
   }: DeviceOptions) {
     // Check protocol version
     if (!SUPPORTED_PROTOCOLS.includes(version)) {
@@ -87,6 +90,7 @@ class Device {
     this._lastHeartbeat = new Date();
     this._heartbeatInterval = heartbeatInterval;
     this._hearbeatTimeout = heartbeatTimeout ?? 2 * heartbeatInterval;
+    this._heartbeatMode = heartbeatMode ?? "ping";
 
     this._socket = new Socket();
 
@@ -212,7 +216,12 @@ class Device {
       );
       return this.disconnect();
     }
-    this.ping();
+    
+    if (this._heartbeatMode === "query") {
+      this.update();
+    } else {
+      this.ping();
+    }
 
     setTimeout(this._recursiveHeartbeat.bind(this), this._heartbeatInterval);
   }
