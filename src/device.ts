@@ -10,15 +10,15 @@ import { DeviceError } from "./lib/helpers";
 import * as crypto from "crypto";
 import { encrypt, hmac } from "./lib/crypto";
 
-interface Device {
-  readonly ip: string;
-  readonly port: number;
-  readonly key: string;
-  readonly id: string;
-  readonly gwId: string;
-  readonly version: number;
-  connected: boolean;
-}
+// interface Device {
+//   readonly ip: string;
+//   readonly port: number;
+//   readonly key: string;
+//   readonly id: string;
+//   readonly gwId: string;
+//   readonly version: number;
+//   connected: boolean;
+// }
 
 export type DeviceOptions = {
   ip: string;
@@ -45,7 +45,7 @@ export type DeviceEvents =
   | "state-change";
 
 class Device {
-  public messenger: Messenger;
+  public messenger!: Messenger;
 
   private readonly _socket: Socket;
 
@@ -61,43 +61,75 @@ class Device {
   private events = new EventEmitter();
   private _tmpLocalKey?: Buffer;
   private _currentSequenceN: number = 0;
-  private sessionKey?: Buffer;
+  private _sessionKey?: Buffer;
   private _hearbeatTimeout: number;
   private _heartbeatMode: "ping" | "query";
+
+  private readonly options: DeviceOptions;
   
-  constructor({
-    ip,
-    id,
-    gwId = id,
-    key,
-    version = 3.3,
-    port = 6668,
-    heartbeatInterval = 1000,
-    heartbeatTimeout,
-    heartbeatMode,
-  }: DeviceOptions) {
+  public readonly ip: string;
+  public readonly port: number;
+  public readonly key: string | Buffer;
+  public readonly id: string;
+  public readonly gwId: string;
+  public readonly version: number;
+
+  public connected: boolean;
+
+  constructor(options: DeviceOptions) {
+    const {
+      ip,
+      id,
+      gwId = id,
+      key,
+      version = 3.3,
+      port = 6668,
+      heartbeatInterval = 1000,
+      heartbeatTimeout,
+      heartbeatMode,
+    } = options;
+
+    this.options = options;
     // Check protocol version
     if (!SUPPORTED_PROTOCOLS.includes(version)) {
       throw new Error(`Protocol version ${version} is unsupported.`);
     }
-    Object.assign(this, { ip, port, key, id, gwId, version });
 
-    this.messenger = new Messenger({ key, version });
+    this.ip = ip;
+    this.port = port;
+    this.key = key;
+    this.id = id;
+    this.gwId = gwId;
+    this.version = version;
+
+    this.initMessenger(key);
 
     this._state = {};
     this.connected = false;
+    this._socket = this.createSocket();
 
     this._lastHeartbeat = new Date();
     this._heartbeatInterval = heartbeatInterval;
     this._hearbeatTimeout = heartbeatTimeout ?? 2 * heartbeatInterval;
     this._heartbeatMode = heartbeatMode ?? "ping";
+  }
 
-    this._socket = new Socket();
+  private initMessenger(key?: string | Buffer) {
+    this.messenger = new Messenger({
+      key: key ?? this.options.key,
+      version: this.options.version,
+    });
+  }
 
-    this._socket.on("connect", this._handleSocketConnect.bind(this));
-    this._socket.on("close", this._handleSocketClose.bind(this));
-    this._socket.on("data", this._handleSocketData.bind(this));
-    this._socket.on("error", this._handleSocketError.bind(this));
+  createSocket() {
+    const socket = new Socket();
+
+    socket.on("connect", this._handleSocketConnect.bind(this));
+    socket.on("close", this._handleSocketClose.bind(this));
+    socket.on("data", this._handleSocketData.bind(this));
+    socket.on("error", this._handleSocketError.bind(this));
+
+    return socket;
   }
 
   connect({
@@ -111,6 +143,12 @@ class Device {
       // Already connected, don't have to do anything
       return;
     }
+
+    if (!this._socket.destroyed) {
+      this._socket.destroy();
+      this.createSocket();
+    }
+
     this.updateOnConnect = updateOnConnect ?? this.updateOnConnect;
     this.enableHeartbeat = enableHeartbeat ?? this.enableHeartbeat;
     // Connect to device
@@ -177,12 +215,12 @@ class Device {
     this.send(this.messenger.encode(frame));
   }
 
-  update(): void {
+  update(dps: DataPointSet = {}): void {
     const payload = {
       gwId: this.gwId,
       devId: this.id,
       t: Math.round(new Date().getTime() / 1000).toString(),
-      dps: {},
+      dps,
       uid: this.id,
     };
     const command =
@@ -216,7 +254,7 @@ class Device {
       );
       return this.disconnect();
     }
-    
+
     if (this._heartbeatMode === "query") {
       this.update();
     } else {
@@ -295,6 +333,7 @@ class Device {
 
   private _handleSocketClose(): void {
     this.connected = false;
+    this.initMessenger();
 
     this._log("Disconnected.");
 
@@ -332,17 +371,20 @@ class Device {
       );
     }
 
-    if (frame.command === COMMANDS.HEART_BEAT) {
-      this._lastHeartbeat = new Date();
-      return;
-    }
+    // any message counts as heartbeat
+    this._lastHeartbeat = new Date();
+
+    // if (frame.command === COMMANDS.HEART_BEAT) {
+      
+    //   return;
+    // }
 
     if (frame.command == COMMANDS.SESS_KEY_NEG_RES) {
       if (!this._tmpLocalKey) {
         throw new Error("No local key set");
       }
 
-      if (this.sessionKey) {
+      if (this._sessionKey) {
         this._log("Session key accepted");
       }
       // 16 bytes _tmpRemoteKey and hmac on _tmpLocalKey
@@ -379,21 +421,18 @@ class Device {
       this.send(buffer);
 
       // Calculate session key
-      this.sessionKey = Buffer.from(this._tmpLocalKey);
+      this._sessionKey = Buffer.from(this._tmpLocalKey);
       for (let i = 0; i < this._tmpLocalKey.length; i++) {
-        this.sessionKey[i] = this._tmpLocalKey[i] ^ _tmpRemoteKey[i];
+        this._sessionKey[i] = this._tmpLocalKey[i] ^ _tmpRemoteKey[i];
       }
 
-      this.sessionKey = encrypt(this.key, this.sessionKey, this.version);
+      this._sessionKey = encrypt(this.key, this._sessionKey, this.version);
       this._log(
-        "Protocol 3.4: Session Key: " + this.sessionKey.toString("hex")
+        "Protocol 3.4: Session Key: " + this._sessionKey.toString("hex")
       );
       this._log("Protocol 3.4: Initialization done");
 
-      this.messenger = new Messenger({
-        key: this.sessionKey,
-        version: this.version,
-      });
+      this.initMessenger(this._sessionKey);
 
       this.afterConnect();
 
