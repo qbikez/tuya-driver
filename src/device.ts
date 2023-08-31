@@ -10,16 +10,6 @@ import { DeviceError } from "./lib/helpers";
 import * as crypto from "crypto";
 import { encrypt, hmac } from "./lib/crypto";
 
-// interface Device {
-//   readonly ip: string;
-//   readonly port: number;
-//   readonly key: string;
-//   readonly id: string;
-//   readonly gwId: string;
-//   readonly version: number;
-//   connected: boolean;
-// }
-
 export type DeviceOptions = {
   ip: string;
   port?: number;
@@ -66,7 +56,7 @@ class Device {
   private _heartbeatMode: "ping" | "query";
 
   private readonly options: DeviceOptions;
-  
+
   public readonly ip: string;
   public readonly port: number;
   public readonly key: string | Buffer;
@@ -375,7 +365,7 @@ class Device {
     this._lastHeartbeat = new Date();
 
     // if (frame.command === COMMANDS.HEART_BEAT) {
-      
+
     //   return;
     // }
 
@@ -450,9 +440,11 @@ class Device {
     }
 
     if ("dps" in parsedData) {
-      // State update event
-      this._state = { ...this._state, ...(parsedData as { dps: object }).dps };
-      this.emit("state-change", this._state);
+      const dps = (parsedData as { dps: DataPointSet }).dps;
+      
+      // store merged state, but send only changed in the event
+      this._state = { ...this._state, ...dps };
+      this.emit("state-change", dps);
     }
   }
 
