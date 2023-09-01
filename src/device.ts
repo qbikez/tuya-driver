@@ -17,6 +17,7 @@ export type DeviceOptions = {
   id: string;
   gwId?: string;
   version?: number;
+  cid?: string;
   heartbeatInterval?: number;
   heartbeatTimeout?: number;
   heartbeatMode?: "ping" | "query";
@@ -61,6 +62,7 @@ class Device {
   public readonly port: number;
   public readonly key: string | Buffer;
   public readonly id: string;
+  public readonly cid: string | undefined;
   public readonly gwId: string;
   public readonly version: number;
 
@@ -77,6 +79,7 @@ class Device {
       heartbeatInterval = 1000,
       heartbeatTimeout,
       heartbeatMode,
+      cid
     } = options;
 
     this.options = options;
@@ -90,6 +93,7 @@ class Device {
     this.key = key;
     this.id = id;
     this.gwId = gwId;
+    this.cid = cid;
     this.version = version;
 
     this.initMessenger(key);
@@ -132,11 +136,6 @@ class Device {
     if (this.connected) {
       // Already connected, don't have to do anything
       return;
-    }
-
-    if (!this._socket.destroyed) {
-      this._socket.destroy();
-      this.createSocket();
     }
 
     this.updateOnConnect = updateOnConnect ?? this.updateOnConnect;
@@ -211,6 +210,7 @@ class Device {
       devId: this.id,
       t: Math.round(new Date().getTime() / 1000).toString(),
       dps,
+      cid: this.cid,
       uid: this.id,
     };
     const command =
@@ -296,6 +296,7 @@ class Device {
     this.connected = true;
 
     this._log("Connected.");
+    this.emit("connected");
     this._currentSequenceN = 0;
 
     if (this.version >= 3.4) {
@@ -306,8 +307,6 @@ class Device {
   }
 
   private afterConnect() {
-    this.emit("connected");
-
     this._lastHeartbeat = new Date();
 
     if (this.enableHeartbeat) {
