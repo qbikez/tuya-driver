@@ -18,9 +18,11 @@ describe("device v3.3", () => {
 
   it("can connect", async () => {
     const [_, connected] = subscribeToEvent(device, "connected");
+    
     device.connect({ updateOnConnect: false, enableHeartbeat: false });
 
     await connected();
+    expect(device.connected).toBe(true);
   });
 
   it("receives raw data", async () => {
