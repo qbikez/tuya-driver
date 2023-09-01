@@ -17,8 +17,8 @@ export function createPromise<T>() {
 export function subscribeToEvent<T>(
   device: Device,
   event: DeviceEvents
-): [T[], () => Promise<T>] {
-  const queue: T[] = [];
+): [Array<{ response?: T; error: any }>, () => Promise<T>] {
+  const queue: Array<{ response?: T; error: any }> = [];
   let {
     promise: nextItemPromise,
     resolve: resolveNextItem,
@@ -26,18 +26,23 @@ export function subscribeToEvent<T>(
   } = createPromise<void>();
 
   device.on(event as any, (data: unknown) => {
-    queue.push(data as T);
+    queue.push({ response: data as T, error: undefined });
     resolveNextItem();
   });
   device.on("error", (err) => {
+    queue.push({ response: undefined, error: err });
     rejectNextItem(err);
   });
-  device.on("disconnected", () => {
-    rejectNextItem("disconnected");
-  });
+  if (event !== "disconnected") {
+    device.on("disconnected", () => {
+      queue.push({ response: undefined, error: "disconnected" });
+      rejectNextItem("disconnected");
+    });
+  }
 
   const factory = () => {
     const { promise, resolve, reject } = createPromise<T>();
+
     const resolveItem = () => {
       const { promise: np, resolve: nres, reject: nrej } = createPromise<
         void
@@ -46,13 +51,16 @@ export function subscribeToEvent<T>(
       resolveNextItem = nres;
       rejectNextItem = nrej;
 
-      resolve(queue.shift()!);
+      const item = queue.shift()!;
+      if (item.error) reject(item.error);
+      else resolve(item.response as T);
     };
+
     if (queue.length > 0) {
       resolveItem();
       return promise;
     } else {
-      nextItemPromise.then(resolveItem);
+      nextItemPromise.then(resolveItem).catch(err => reject(err));
       return promise;
     }
   };
