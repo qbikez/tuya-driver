@@ -67,6 +67,9 @@ class Device {
   public readonly version: number;
 
   public connected: boolean;
+  public connecting() {
+    return this._socket.connecting;
+  }
 
   constructor(options: DeviceOptions) {
     const {
@@ -100,7 +103,6 @@ class Device {
 
     this.connected = false;
     this._socket = this.createSocket();
-
     this.initMessenger(key);
 
     this._lastHeartbeat = new Date();
