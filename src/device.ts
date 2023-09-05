@@ -239,7 +239,7 @@ class Device {
   private _recursiveHeartbeat(): void {
     const timeout = this._hearbeatTimeout;
     if (new Date().getTime() - this._lastHeartbeat.getTime() > timeout) {
-      console.log("Heartbeat timeout - disconnecting");
+      this._log("Heartbeat timeout - disconnecting");
       // Heartbeat timeout
       // Should we emit error on timeout?
       this.emit(
