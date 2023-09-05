@@ -38,7 +38,7 @@ export type DeviceEvents =
 class Device {
   public messenger!: Messenger;
 
-  private readonly _socket: Socket;
+  private _socket: Socket;
 
   private _state: DataPointSet;
 
@@ -96,11 +96,12 @@ class Device {
     this.cid = cid;
     this.version = version;
 
-    this.initMessenger(key);
-
     this._state = {};
+
     this.connected = false;
     this._socket = this.createSocket();
+
+    this.initMessenger(key);
 
     this._lastHeartbeat = new Date();
     this._heartbeatInterval = heartbeatInterval;
@@ -137,6 +138,9 @@ class Device {
       // Already connected, don't have to do anything
       return;
     }
+
+    this._socket = this.createSocket();
+    this.initMessenger(this.key);
 
     this.updateOnConnect = updateOnConnect ?? this.updateOnConnect;
     this.enableHeartbeat = enableHeartbeat ?? this.enableHeartbeat;
@@ -322,7 +326,6 @@ class Device {
 
   private _handleSocketClose(): void {
     this.connected = false;
-    this.initMessenger();
 
     this._log("Disconnected.");
 
