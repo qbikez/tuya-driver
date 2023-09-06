@@ -454,6 +454,7 @@ class Device {
 
   private _handleSocketError(error: Error): void {
     this._log("Error from socket:", error);
+    this.emit("error", error);
   }
 
   private _log(...message: any[]): void {
