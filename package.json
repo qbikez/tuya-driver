@@ -23,7 +23,7 @@
   "scripts": {
     "lint": "xo",
     "lint-fix": "xo --fix",
-    "test": "cross-env DEBUG=\"@tuyapi/driver\" vitest",
+    "test": "cross-env DEBUG=\"tuya-driver:*\" vitest  --silent=false",
     "babel": "babel dist -d dist",
     "build": "tsc && npm run babel",
     "watch": "tsc --watch",
