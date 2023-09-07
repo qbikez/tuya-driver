@@ -461,7 +461,6 @@ class Device {
     const d = debug("tuya-driver:device");
 
     d(`${this.ip}:`, ...message);
-    console.log(`${this.ip}:`, ...message);
   }
 
   emit(event: "connected" | "disconnected"): boolean;
