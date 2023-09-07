@@ -67,8 +67,10 @@ class Device {
   public readonly version: number;
 
   public connected: boolean;
+  private _connecting: boolean = false;
+  
   public connecting() {
-    return this._socket.connecting;
+    return this._socket.connecting || this._connecting;
   }
 
   constructor(options: DeviceOptions) {
@@ -140,7 +142,7 @@ class Device {
       // Already connected, don't have to do anything
       return;
     }
-
+    this._connecting = true;
     this._socket = this.createSocket();
     this.initMessenger(this.key);
 
@@ -207,7 +209,7 @@ class Device {
       sequenceN: ++this._currentSequenceN,
     };
 
-    this.send(this.messenger.encode(frame));
+    this.send(this.messenger.encode(frame), "setState");
   }
 
   update(dps: DataPointSet = {}): void {
@@ -229,11 +231,11 @@ class Device {
     };
 
     const request = this.messenger.encode(frame);
-    this.send(request);
+    this.send(request, "update");
   }
 
-  send(packet: Packet): void {
-    this._log("Sending:", packet.buffer.toString("hex"));
+  send(packet: Packet, description: string): void {
+    this._log(`Sending ${description}: ${packet.buffer.toString("hex")}`);
 
     this._socket.write(packet.buffer);
   }
@@ -274,7 +276,7 @@ class Device {
       sequenceN: ++this._currentSequenceN,
     };
 
-    this.send(this.messenger.encode(frame));
+    this.send(this.messenger.encode(frame), "ping");
   }
 
   private requestSessionKey() {
@@ -290,7 +292,7 @@ class Device {
       });
 
       this._log("Protocol 3.4: Negotiate Session Key - Send Msg 0x03");
-      this.send(packet);
+      this.send(packet, "session key negotiation");
     } catch (error) {
       this._log("Error binding key for protocol 3.4: " + error);
     }
@@ -299,10 +301,7 @@ class Device {
   }
 
   private _handleSocketConnect(): void {
-    this.connected = true;
-
-    this._log("Connected.");
-    this.emit("connected");
+    this._log("socketConnected.");
     this._currentSequenceN = 0;
 
     if (this.version >= 3.4) {
@@ -313,6 +312,11 @@ class Device {
   }
 
   private afterConnect() {
+    this.connected = true;
+    this._connecting = false;
+    
+    this.emit("connected");
+    
     this._lastHeartbeat = new Date();
 
     if (this.enableHeartbeat) {
@@ -412,7 +416,7 @@ class Device {
         sequenceN: ++this._currentSequenceN,
       });
 
-      this.send(buffer);
+      this.send(buffer, "session key negotiation response");
 
       // Calculate session key
       this._sessionKey = Buffer.from(this._tmpLocalKey);
