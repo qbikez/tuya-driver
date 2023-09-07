@@ -458,7 +458,7 @@ class Device {
   }
 
   private _log(...message: any[]): void {
-    const d = debug("tuya-driver:device");
+    const d = debug(`tuya-driver:device:${this.options.id}`);
 
     d(`${this.ip}:`, ...message);
   }
