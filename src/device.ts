@@ -68,7 +68,7 @@ class Device {
 
   public connected: boolean;
   private _connecting: boolean = false;
-  
+
   public connecting() {
     return this._socket.connecting || this._connecting;
   }
@@ -84,7 +84,7 @@ class Device {
       heartbeatInterval = 1000,
       heartbeatTimeout,
       heartbeatMode,
-      cid
+      cid,
     } = options;
 
     this.options = options;
@@ -314,9 +314,9 @@ class Device {
   private afterConnect() {
     this.connected = true;
     this._connecting = false;
-    
+
     this.emit("connected");
-    
+
     this._lastHeartbeat = new Date();
 
     if (this.enableHeartbeat) {
@@ -332,6 +332,7 @@ class Device {
 
   private _handleSocketClose(): void {
     this.connected = false;
+    this._connecting = false;
 
     this._log("Disconnected.");
 
@@ -449,7 +450,7 @@ class Device {
 
     if ("dps" in parsedData) {
       const dps = (parsedData as { dps: DataPointSet }).dps;
-      
+
       // store merged state, but send only changed in the event
       this._state = { ...this._state, ...dps };
       this.emit("state-change", dps);
